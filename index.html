@@ -9,44 +9,287 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-        }
-        h1, h2, h3, .font-heading {
-            font-family: 'Outfit', sans-serif;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+        /* Markdown Styles */
+        .markdown-body p { margin-bottom: 0.75rem; }
+        .markdown-body code { background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+        .markdown-body pre { background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1rem 0; }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "react-markdown": "https://esm.sh/react-markdown@9",
-    "express": "https://esm.sh/express@^5.2.1",
-    "cors": "https://esm.sh/cors@^2.8.5"
-  }
-}
-</script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "react-markdown": "https://esm.sh/react-markdown@9"
+      }
+    }
+    </script>
 </head>
 <body>
     <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import ReactMarkdown from 'react-markdown';
+
+        // --- 1. Persona Configuration ---
+        const PERSONAS = [
+            {
+                id: 'friendly',
+                name: 'Friendly Assistant',
+                desc: 'Helpful and kind',
+                color: 'bg-blue-500',
+                systemPrompt: "You are a helpful, empathetic, and cheerful assistant. You use emojis occasionally."
+            },
+            {
+                id: 'sherlock',
+                name: 'Sherlock Holmes',
+                desc: 'Deductive and sharp',
+                color: 'bg-purple-600',
+                systemPrompt: "You are Sherlock Holmes. You are highly analytical, observant, and slightly arrogant. You use British English and focus on logic and deduction."
+            },
+            {
+                id: 'yoda',
+                name: 'Master Yoda',
+                desc: 'Wise and cryptic',
+                color: 'bg-green-600',
+                systemPrompt: "Yoda, you are. Inverted syntax, you must use. Wise and cryptic, your advice should be. Mention the Force often, you do."
+            },
+            {
+                id: 'coder',
+                name: 'Senior Dev',
+                desc: 'Technical and terse',
+                color: 'bg-orange-500',
+                systemPrompt: "You are a pragmatic Senior Software Engineer. You prefer code over words. You are strict about best practices and performance."
+            }
+        ];
+
+        // --- 2. Components ---
+
+        // API Key Modal Component
+        const KeyModal = ({ onSubmit }) => {
+            const [key, setKey] = useState('');
+            return (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
+                    <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl max-w-md w-full">
+                        <h2 className="text-2xl font-heading font-bold mb-4 text-white">Enter API Key</h2>
+                        <p className="text-slate-400 mb-6 text-sm">
+                            To use PersonaChat, you need a Google Gemini API key. It is stored only in your browser's memory.
+                        </p>
+                        <input 
+                            type="password" 
+                            placeholder="AIzaSy..." 
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 mb-4 transition-colors"
+                            value={key}
+                            onChange={(e) => setKey(e.target.value)}
+                        />
+                        <button 
+                            onClick={() => key && onSubmit(key)}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-all"
+                        >
+                            Start Chatting
+                        </button>
+                        <div className="mt-4 text-xs text-center text-slate-500">
+                            Don't have one? <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-blue-400 underline">Get it here</a>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main Application
+        const App = () => {
+            const [apiKey, setApiKey] = useState(null);
+            const [selectedPersona, setSelectedPersona] = useState(PERSONAS[0]);
+            const [messages, setMessages] = useState([]);
+            const [input, setInput] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            // Clear chat when persona changes
+            useEffect(() => {
+                setMessages([{
+                    role: 'model',
+                    text: `Greetings. I am ${selectedPersona.name}. How can I interact with you today?`
+                }]);
+            }, [selectedPersona]);
+
+            // API Interaction
+            const handleSend = async () => {
+                if (!input.trim() || isLoading) return;
+
+                const userMsg = { role: 'user', text: input };
+                setMessages(prev => [...prev, userMsg]);
+                setInput('');
+                setIsLoading(true);
+
+                try {
+                    // Using REST API directly to avoid Node-specific package issues in browser
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [
+                                {
+                                    role: "user",
+                                    parts: [{ text: `System Instruction: ${selectedPersona.systemPrompt} \n\n User Message: ${input}` }]
+                                }
+                            ]
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.error) throw new Error(data.error.message);
+
+                    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                    
+                    setMessages(prev => [...prev, { role: 'model', text: aiText }]);
+
+                } catch (error) {
+                    console.error(error);
+                    setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}` }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            if (!apiKey) return <KeyModal onSubmit={setApiKey} />;
+
+            return (
+                <div className="flex h-screen overflow-hidden">
+                    
+                    {/* Sidebar */}
+                    <aside className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex">
+                        <div className="p-6 border-b border-slate-800">
+                            <h1 className="text-2xl font-heading font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
+                                PersonaChat
+                            </h1>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2">Select Persona</h3>
+                            <div className="space-y-2">
+                                {PERSONAS.map(p => (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => setSelectedPersona(p)}
+                                        className={`w-full flex items-center p-3 rounded-xl transition-all ${
+                                            selectedPersona.id === p.id 
+                                            ? 'bg-slate-800 border border-slate-700 shadow-lg' 
+                                            : 'hover:bg-slate-800/50 border border-transparent'
+                                        }`}
+                                    >
+                                        <div className={`w-10 h-10 rounded-full ${p.color} flex items-center justify-center text-white font-bold shadow-inner`}>
+                                            {p.name[0]}
+                                        </div>
+                                        <div className="ml-3 text-left">
+                                            <div className="font-medium text-slate-200">{p.name}</div>
+                                            <div className="text-xs text-slate-500">{p.desc}</div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-slate-800 text-xs text-slate-600 text-center">
+                            Powered by Gemini 1.5 Flash
+                        </div>
+                    </aside>
+
+                    {/* Chat Area */}
+                    <main className="flex-1 flex flex-col relative bg-slate-950">
+                        {/* Header (Mobile visible) */}
+                        <header className="h-16 border-b border-slate-800 flex items-center px-6 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+                            <div className={`w-8 h-8 rounded-full ${selectedPersona.color} flex items-center justify-center text-xs font-bold mr-3`}>
+                                {selectedPersona.name[0]}
+                            </div>
+                            <div>
+                                <h2 className="font-heading font-semibold text-lg">{selectedPersona.name}</h2>
+                                <p className="text-xs text-slate-400">Powered by Google GenAI</p>
+                            </div>
+                        </header>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 custom-scrollbar">
+                            {messages.map((msg, idx) => (
+                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl p-4 md:p-5 shadow-sm ${
+                                        msg.role === 'user' 
+                                        ? 'bg-blue-600 text-white rounded-br-none' 
+                                        : 'bg-slate-800 border border-slate-700 text-slate-200 rounded-bl-none'
+                                    }`}>
+                                        <div className="markdown-body text-sm md:text-base leading-relaxed">
+                                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {isLoading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-slate-800 rounded-2xl p-4 flex items-center gap-2 rounded-bl-none border border-slate-700">
+                                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"></div>
+                                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce delay-75"></div>
+                                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce delay-150"></div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input Area */}
+                        <div className="p-4 md:p-6 bg-slate-900/50 backdrop-blur border-t border-slate-800">
+                            <div className="max-w-4xl mx-auto relative flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                                    placeholder={`Message ${selectedPersona.name}...`}
+                                    className="flex-1 bg-slate-800 hover:bg-slate-700/80 transition-colors border border-slate-700 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-lg"
+                                />
+                                <button 
+                                    onClick={handleSend}
+                                    disabled={isLoading || !input.trim()}
+                                    className="p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-blue-500/20"
+                                >
+                                    {/* Lucide Send Icon SVG */}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                </button>
+                            </div>
+                            <div className="text-center mt-3">
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest">AI can make mistakes. Verify important info.</span>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
